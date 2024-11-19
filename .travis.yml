@@ -1,0 +1,28 @@
+osx_image: xcode12.3
+language: objective-c
+
+# Handle git submodules yourself
+# http://stackoverflow.com/a/24600210/805882
+git:
+    submodules: false
+
+# Use sed to replace the SSH URL with the public URL, then initialize submodules
+before_install:
+  - sed -i -e 's/git@github.com:/git:\/\/github.com\//' .gitmodules
+  - git submodule update --init --recursive
+  - export IOS_SIMULATOR_UDID=`instruments -s devices | grep -m 1 "iPhone 8 (12" | awk -F '[ ]' '{print $4}' | awk -F '[\[]' '{print $2}' | sed 's/.$//'`
+  - echo $IOS_SIMULATOR_UDID
+
+install:
+#  - mkdir Submodules/iBurn-Data/data/2016/2016
+  - touch iBurn/GoogleService-Info.plist
+  - echo -e "#define MAPBOX_ACCESS_TOKEN test\n#define CRASHLYTICS_API_TOKEN test\n" > ./iBurn/InfoPlistSecrets.h
+  - echo -e "NSString * const kBRCHockeyBetaIdentifier = @\"\";\nNSString * const kBRCHockeyLiveIdentifier = @\"\";\nNSString * const kBRCEmbargoPasscodeSHA256Hash = @\"\";\nNSString * const kBRCUpdatesURLString = @\"\";\nNSString * const kBRCMapBoxStyleURL = @\"https://example.com\";\nNSString * const kBRCMapBoxAccessToken = @\"\";\n" > ./iBurn/BRCSecrets.m
+
+before_script:
+  - bundle install
+  - bundle exec pod repo update --silent
+  - bundle exec pod install
+script:
+  - set -o pipefail
+  - xcodebuild -workspace iBurn.xcworkspace -scheme iBurn -sdk iphonesimulator -destination "id=$IOS_SIMULATOR_UDID" build | xcpretty -c
